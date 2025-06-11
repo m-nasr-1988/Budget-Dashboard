@@ -30,7 +30,83 @@ if uploaded_file:
             
         st.plotly_chart(fig_sector, use_container_width=True)
 
-        
+        # --- Budget Summary from Excel Sheet ---
+        st.subheader("📘 Detailed Budget Summary")
+
+        try:
+            # Load the summary sheet
+            summary_df = pd.read_excel(uploaded_file, sheet_name="Detailed Budget Summary", engine='openpyxl')
+
+            # 🧮 Checkbox Filters
+            st.markdown("### 🧮 Filter Options")
+
+            all_quarters = sorted(summary_df["Quarter"].dropna().unique())
+            select_all_quarters = st.checkbox("Select All Quarters", value=True, key="q_all")
+            selected_quarters = all_quarters if select_all_quarters else [
+                q for q in all_quarters if st.checkbox(q, key=f"q_{q}")
+            ]
+
+            all_tasks = sorted(summary_df["Main Task"].dropna().unique())
+            select_all_tasks = st.checkbox("Select All Tasks", value=True, key="t_all")
+            selected_tasks = all_tasks if select_all_tasks else [
+                t for t in all_tasks if st.checkbox(t, key=f"t_{t}")
+            ]
+
+            # Apply filters
+            filtered_df = summary_df[
+                summary_df["Quarter"].isin(selected_quarters) &
+                summary_df["Main Task"].isin(selected_tasks)
+            ]
+
+            # 🧾 Show filtered table
+            st.dataframe(filtered_df.style.format({
+                "Estimated Budget (€)": "€{:,.2f}",
+                "Paid Amount (€)": "€{:,.2f}",
+                "Old Estimated Budget (€)": "€{:,.2f}"
+            }))
+
+            # 📊 Budget Comparison Bar Chart
+            st.subheader("📊 Budget Comparison by Quarter & Main Task")
+
+            melted = filtered_df.melt(
+                id_vars=["Quarter", "Main Task"],
+                value_vars=["Estimated Budget (€)", "Paid Amount (€)", "Old Estimated Budget (€)"],
+                var_name="Budget Type",
+                value_name="Amount (€)"
+            )
+
+            fig_summary = px.bar(
+                melted,
+                x="Main Task",
+                y="Amount (€)",
+                color="Budget Type",
+                barmode="group",
+                facet_col="Quarter",
+                title="Estimated vs Paid vs Old Budget",
+                color_discrete_map={
+                    "Estimated Budget (€)": "#1f77b4",
+                    "Paid Amount (€)": "#2ca02c",
+                    "Old Estimated Budget (€)": "#d62728"
+                },
+                height=600
+            )
+            fig_summary.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig_summary, use_container_width=True)
+
+            # 📌 Summary Metrics
+            st.subheader("📌 Total Budget Summary")
+            total_est = filtered_df["Estimated Budget (€)"].sum()
+            total_paid = filtered_df["Paid Amount (€)"].sum()
+            total_old = filtered_df["Old Estimated Budget (€)"].sum()
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Estimated Budget", f"€{total_est:,.2f}")
+            col2.metric("Paid Amount", f"€{total_paid:,.2f}")
+            col3.metric("Old Estimated Budget", f"€{total_old:,.2f}")
+
+        except Exception as e:
+            st.warning(f"⚠️ Could not load 'Detailed Budget Summary' sheet: {e}")
+
 
         st.subheader("📈 Profit Trend")
         profit_summary = bep_df[["Quarter", "Profit"]]
@@ -55,10 +131,3 @@ if uploaded_file:
         st.error(f"❌ Error reading file: {e}")
 else:
     st.info("Upload a valid Excel file to get started.")
-
-
-
-
-
-
-
