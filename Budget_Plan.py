@@ -10,9 +10,24 @@ uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
 
 if uploaded_file:
     try:
-        budget_df = pd.read_excel(uploaded_file, sheet_name="🎯Budget Plan - 1st Year", engine='openpyxl')
-        bep_df = pd.read_excel(uploaded_file, sheet_name="Break-Even Point", engine='openpyxl')
+        # --- Year Selector ---
+        st.subheader("📅 Select Budget Year")
+        selected_year = st.radio("Choose a year:", [2025, 2026], horizontal=True)
 
+        # Map year to corresponding sheet name
+        budget_sheet_map = {
+            2025: "🎯Budget Plan - 1st Year",
+            2026: "🎯Budget Plan - 2nd Year"
+        }
+
+        selected_budget_sheet = budget_sheet_map[selected_year]
+
+        # Load dynamic budget sheet based on selected year
+        budget_df = pd.read_excel(uploaded_file, sheet_name=selected_budget_sheet, engine='openpyxl')
+
+        # Load break-even point once (assumed to be year-agnostic or first-year)
+        bep_df = pd.read_excel(uploaded_file, sheet_name="Break-Even Point", engine='openpyxl')
+        
         st.subheader("Budget Overview")
         budget_summary = budget_df.groupby("Quarter")["Budget"].sum().reset_index()
         fig_budget = px.bar(budget_summary, x="Quarter", y="Budget", color="Quarter", text_auto=True)
